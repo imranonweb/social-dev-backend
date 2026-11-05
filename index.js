@@ -49,7 +49,7 @@ export const verifyToken = (req, res, next) => {
   }
 
   const token = authHeader.split(' ')[1]
-  jwt.verify(token, process.env.JWT_SECRET || 'social_dev_secret_key', (err, decoded) => {
+  jwt.verify(token, process.env.JWT_SECRET || '811e431a20a5ddca20868fae5dd31257283764c3e02936236cd4590a0d37ce95', (err, decoded) => {
     if (err) {
       return res.status(403).send({ message: 'Forbidden access: Invalid or expired token' })
     }
@@ -97,7 +97,7 @@ app.post('/jwt', async (req, res) => {
     return res.status(400).send({ message: 'Email is required to generate token' })
   }
 
-  const token = jwt.sign({ email }, process.env.JWT_SECRET || 'social_dev_secret_key', {
+  const token = jwt.sign({ email }, process.env.JWT_SECRET || '811e431a20a5ddca20868fae5dd31257283764c3e02936236cd4590a0d37ce95', {
     expiresIn: '7d'
   })
   res.send({ success: true, token })
