@@ -69,14 +69,15 @@ app.get('/', (req, res) => {
   res.send({ message: 'Social Development Events Platform Server is running fine!' })
 })
 
-// Quick check: View all data in database (Events & Joined registrations)
-app.get('/all-data', async (req, res) => {
+// Protected overview: View all data in database (Events & Joined registrations)
+app.get('/all-data', verifyToken, async (req, res) => {
   try {
     const allEvents = await eventsCollection.find().sort({ createdAt: -1 }).toArray()
     const allJoined = await joinedEventsCollection.find().sort({ joinedAt: -1 }).toArray()
 
     res.send({
       status: 'success',
+      requestedBy: req.user.email,
       counts: {
         totalEvents: allEvents.length,
         totalJoined: allJoined.length
@@ -255,7 +256,8 @@ app.put('/events/:id', verifyToken, async (req, res) => {
       return res.status(404).send({ message: 'Event not found' })
     }
 
-    if (existingEvent.creatorEmail !== req.user.email) {
+    const ownerEmail = existingEvent.creatorEmail || existingEvent.organizerEmail
+    if (ownerEmail !== req.user.email) {
       return res.status(403).send({ message: 'Forbidden: You can only update your own events' })
     }
 
@@ -268,7 +270,14 @@ app.put('/events/:id', verifyToken, async (req, res) => {
       }
     }
 
-    const { _id, creatorEmail, createdAt, ...updateData } = req.body
+    // Strip sensitive/ownership fields to prevent tampering
+    const { _id, creatorEmail, organizerEmail, createdAt, ...updateData } = req.body
+    if (req.body.image && !updateData.thumbnail) {
+      updateData.thumbnail = req.body.image
+    }
+    if (updateData.thumbnail && !updateData.image) {
+      updateData.image = updateData.thumbnail
+    }
     updateData.updatedAt = new Date()
 
     const result = await eventsCollection.updateOne(
@@ -295,7 +304,8 @@ app.delete('/events/:id', verifyToken, async (req, res) => {
       return res.status(404).send({ message: 'Event not found' })
     }
 
-    if (existingEvent.creatorEmail !== req.user.email) {
+    const ownerEmail = existingEvent.creatorEmail || existingEvent.organizerEmail
+    if (ownerEmail !== req.user.email) {
       return res.status(403).send({ message: 'Forbidden: You can only delete your own events' })
     }
 

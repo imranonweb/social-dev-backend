@@ -61,7 +61,7 @@ npm start
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
 | `GET` | `/` | Public | Returns server health and status message |
-| `GET` | `/all-data` | Public | Returns complete overview and counts of all events and joined registrations |
+| `GET` | `/all-data` | Private (JWT) | Returns complete overview and counts of all events and joined registrations (Protected) |
 
 ### 2. Authentication
 | Method | Endpoint | Access | Body Payload | Description |
