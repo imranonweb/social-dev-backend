@@ -162,6 +162,110 @@ app.get('/events', async (req, res) => {
   }
 })
 
+// Manage Events: Get events created by logged-in user (Private)
+app.get('/my-events', verifyToken, async (req, res) => {
+  try {
+    const userEmail = req.user.email
+    if (req.query.email && req.query.email !== userEmail) {
+      return res.status(403).send({ message: 'Forbidden access to other user events' })
+    }
+
+    const result = await eventsCollection
+      .find({ creatorEmail: userEmail })
+      .sort({ createdAt: -1 })
+      .toArray()
+
+    res.send(result)
+  } catch (error) {
+    res.status(500).send({ message: 'Failed to fetch my events', error: error.message })
+  }
+})
+
+// View Event Details (Public Page)
+app.get('/events/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).send({ message: 'Invalid Event ID format' })
+    }
+
+    const result = await eventsCollection.findOne({ _id: new ObjectId(id) })
+    if (!result) {
+      return res.status(404).send({ message: 'Event not found' })
+    }
+
+    res.send(result)
+  } catch (error) {
+    res.status(500).send({ message: 'Failed to fetch event details', error: error.message })
+  }
+})
+
+// Update Event (Private - Only creator can update)
+app.put('/events/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).send({ message: 'Invalid Event ID format' })
+    }
+
+    const existingEvent = await eventsCollection.findOne({ _id: new ObjectId(id) })
+    if (!existingEvent) {
+      return res.status(404).send({ message: 'Event not found' })
+    }
+
+    if (existingEvent.creatorEmail !== req.user.email) {
+      return res.status(403).send({ message: 'Forbidden: You can only update your own events' })
+    }
+
+    if (req.body.eventDate) {
+      const todayDateOnly = new Date()
+      todayDateOnly.setHours(0, 0, 0, 0)
+      const inputDate = new Date(req.body.eventDate)
+      if (inputDate < todayDateOnly) {
+        return res.status(400).send({ message: 'Event date must be in the future. Past dates are not allowed.' })
+      }
+    }
+
+    const { _id, creatorEmail, createdAt, ...updateData } = req.body
+    updateData.updatedAt = new Date()
+
+    const result = await eventsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updateData }
+    )
+
+    res.send(result)
+  } catch (error) {
+    res.status(500).send({ message: 'Failed to update event', error: error.message })
+  }
+})
+
+// Delete Event (Private - Only creator can delete)
+app.delete('/events/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).send({ message: 'Invalid Event ID format' })
+    }
+
+    const existingEvent = await eventsCollection.findOne({ _id: new ObjectId(id) })
+    if (!existingEvent) {
+      return res.status(404).send({ message: 'Event not found' })
+    }
+
+    if (existingEvent.creatorEmail !== req.user.email) {
+      return res.status(403).send({ message: 'Forbidden: You can only delete your own events' })
+    }
+
+    const result = await eventsCollection.deleteOne({ _id: new ObjectId(id) })
+    await joinedEventsCollection.deleteMany({ eventId: id })
+
+    res.send(result)
+  } catch (error) {
+    res.status(500).send({ message: 'Failed to delete event', error: error.message })
+  }
+})
+
 app.listen(PORT, () => {
   console.log(`Server is running at port: ${PORT}`)
 })
