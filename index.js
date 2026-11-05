@@ -266,6 +266,92 @@ app.delete('/events/:id', verifyToken, async (req, res) => {
   }
 })
 
+// Join Event (Private - Logged in user)
+app.post('/joined-events', verifyToken, async (req, res) => {
+  try {
+    const { eventId, userName, userPhoto } = req.body
+
+    if (!eventId || !ObjectId.isValid(eventId)) {
+      return res.status(400).send({ message: 'Valid Event ID is required' })
+    }
+
+    const event = await eventsCollection.findOne({ _id: new ObjectId(eventId) })
+    if (!event) {
+      return res.status(404).send({ message: 'Event not found' })
+    }
+
+    const alreadyJoined = await joinedEventsCollection.findOne({
+      eventId,
+      userEmail: req.user.email
+    })
+
+    if (alreadyJoined) {
+      return res.status(400).send({ message: 'You have already joined this event' })
+    }
+
+    const joinRecord = {
+      eventId,
+      eventTitle: event.title,
+      eventType: event.eventType,
+      eventDate: event.eventDate,
+      thumbnail: event.thumbnail,
+      location: event.location,
+      userEmail: req.user.email,
+      userName: userName || '',
+      userPhoto: userPhoto || '',
+      joinedAt: new Date()
+    }
+
+    const result = await joinedEventsCollection.insertOne(joinRecord)
+    res.status(201).send(result)
+  } catch (error) {
+    res.status(500).send({ message: 'Failed to join event', error: error.message })
+  }
+})
+
+// Joined Events Page: Show all events joined by logged-in user sorted by event date (Private)
+app.get('/joined-events', verifyToken, async (req, res) => {
+  try {
+    const userEmail = req.user.email
+    if (req.query.email && req.query.email !== userEmail) {
+      return res.status(403).send({ message: 'Forbidden access to other user joined events' })
+    }
+
+    const result = await joinedEventsCollection
+      .find({ userEmail })
+      .sort({ eventDate: 1 })
+      .toArray()
+
+    res.send(result)
+  } catch (error) {
+    res.status(500).send({ message: 'Failed to fetch joined events', error: error.message })
+  }
+})
+
+// Cancel Joined Event (Private - Only joining user can cancel)
+app.delete('/joined-events/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).send({ message: 'Invalid registration ID' })
+    }
+
+    const record = await joinedEventsCollection.findOne({ _id: new ObjectId(id) })
+    if (!record) {
+      return res.status(404).send({ message: 'Joined event record not found' })
+    }
+
+    if (record.userEmail !== req.user.email) {
+      return res.status(403).send({ message: 'Forbidden: You can only cancel your own joined events' })
+    }
+
+    const result = await joinedEventsCollection.deleteOne({ _id: new ObjectId(id) })
+    res.send(result)
+  } catch (error) {
+    res.status(500).send({ message: 'Failed to cancel attendance', error: error.message })
+  }
+})
+
 app.listen(PORT, () => {
   console.log(`Server is running at port: ${PORT}`)
 })
