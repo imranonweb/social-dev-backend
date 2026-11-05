@@ -106,6 +106,62 @@ app.post('/events', verifyToken, async (req, res) => {
   }
 })
 
+// 6 Recent Upcoming Events for Home Page (uses .limit(6))
+app.get('/events/recent', async (req, res) => {
+  try {
+    const todayStr = new Date().toISOString().split('T')[0]
+    const query = {
+      $or: [
+        { eventDate: { $gte: todayStr } },
+        { eventDate: { $gte: new Date() } }
+      ]
+    }
+
+    const result = await eventsCollection
+      .find(query)
+      .sort({ eventDate: 1 })
+      .limit(6)
+      .toArray()
+
+    res.send(result)
+  } catch (error) {
+    res.status(500).send({ message: 'Failed to fetch recent events', error: error.message })
+  }
+})
+
+// All Upcoming Events (Public Page)
+app.get('/events', async (req, res) => {
+  try {
+    const { search, type, sort } = req.query
+    const todayStr = new Date().toISOString().split('T')[0]
+
+    const query = {
+      $or: [
+        { eventDate: { $gte: todayStr } },
+        { eventDate: { $gte: new Date() } }
+      ]
+    }
+
+    if (type && type !== 'All') {
+      query.eventType = type
+    }
+
+    if (search) {
+      query.title = { $regex: search, $options: 'i' }
+    }
+
+    let sortOrder = { eventDate: 1 }
+    if (sort === 'desc') {
+      sortOrder = { eventDate: -1 }
+    }
+
+    const result = await eventsCollection.find(query).sort(sortOrder).toArray()
+    res.send(result)
+  } catch (error) {
+    res.status(500).send({ message: 'Failed to fetch upcoming events', error: error.message })
+  }
+})
+
 app.listen(PORT, () => {
   console.log(`Server is running at port: ${PORT}`)
 })
