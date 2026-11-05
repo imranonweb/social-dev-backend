@@ -309,6 +309,21 @@ app.post('/joined-events', verifyToken, async (req, res) => {
   }
 })
 
+// Check if user has already joined a specific event (Private)
+app.get('/joined-events/check/:eventId', verifyToken, async (req, res) => {
+  try {
+    const { eventId } = req.params
+    const record = await joinedEventsCollection.findOne({
+      eventId,
+      userEmail: req.user.email
+    })
+
+    res.send({ hasJoined: !!record, joinId: record?._id || null })
+  } catch (error) {
+    res.status(500).send({ message: 'Failed to check join status', error: error.message })
+  }
+})
+
 // Joined Events Page: Show all events joined by logged-in user sorted by event date (Private)
 app.get('/joined-events', verifyToken, async (req, res) => {
   try {
