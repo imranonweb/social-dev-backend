@@ -20,7 +20,25 @@ export async function connectToMongoDB() {
 }
 
 // Middlewares
-app.use(cors())
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173'
+]
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+      callback(null, true)
+    } else {
+      callback(null, true)
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}))
 app.use(express.json())
 
 // JWT Verification Middleware
@@ -67,7 +85,8 @@ app.post('/jwt', async (req, res) => {
 // Create Event (Private - Logged in user only)
 app.post('/events', verifyToken, async (req, res) => {
   try {
-    const { title, description, eventType, thumbnail, location, eventDate } = req.body
+    const { title, description, eventType, location, eventDate } = req.body
+    const thumbnail = req.body.thumbnail || req.body.image
 
     // Validation
     if (!title || !description || !eventType || !thumbnail || !location || !eventDate) {
@@ -92,10 +111,13 @@ app.post('/events', verifyToken, async (req, res) => {
       description,
       eventType,
       thumbnail,
+      image: thumbnail,
       location,
       eventDate,
       creatorEmail: req.user.email,
-      creatorName: req.body.creatorName || '',
+      organizerEmail: req.user.email,
+      creatorName: req.body.creatorName || req.body.organizerName || '',
+      organizerName: req.body.creatorName || req.body.organizerName || '',
       createdAt: new Date()
     }
 
@@ -291,10 +313,13 @@ app.post('/joined-events', verifyToken, async (req, res) => {
 
     const joinRecord = {
       eventId,
+      title: event.title,
       eventTitle: event.title,
+      description: event.description,
       eventType: event.eventType,
       eventDate: event.eventDate,
-      thumbnail: event.thumbnail,
+      thumbnail: event.thumbnail || event.image,
+      image: event.thumbnail || event.image,
       location: event.location,
       userEmail: req.user.email,
       userName: userName || '',
