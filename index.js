@@ -64,6 +64,48 @@ app.post('/jwt', async (req, res) => {
   res.send({ success: true, token })
 })
 
+// Create Event (Private - Logged in user only)
+app.post('/events', verifyToken, async (req, res) => {
+  try {
+    const { title, description, eventType, thumbnail, location, eventDate } = req.body
+
+    // Validation
+    if (!title || !description || !eventType || !thumbnail || !location || !eventDate) {
+      return res.status(400).send({ message: 'All event fields are required' })
+    }
+
+    // Ensure event date is in the future
+    const todayDateOnly = new Date()
+    todayDateOnly.setHours(0, 0, 0, 0)
+    const inputDate = new Date(eventDate)
+
+    if (isNaN(inputDate.getTime())) {
+      return res.status(400).send({ message: 'Invalid event date format' })
+    }
+
+    if (inputDate < todayDateOnly) {
+      return res.status(400).send({ message: 'Event date must be in the future. Past dates are not allowed.' })
+    }
+
+    const newEvent = {
+      title,
+      description,
+      eventType,
+      thumbnail,
+      location,
+      eventDate,
+      creatorEmail: req.user.email,
+      creatorName: req.body.creatorName || '',
+      createdAt: new Date()
+    }
+
+    const result = await eventsCollection.insertOne(newEvent)
+    res.status(201).send(result)
+  } catch (error) {
+    res.status(500).send({ message: 'Failed to create event', error: error.message })
+  }
+})
+
 app.listen(PORT, () => {
   console.log(`Server is running at port: ${PORT}`)
 })
