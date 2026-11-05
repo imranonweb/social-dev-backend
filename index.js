@@ -69,6 +69,26 @@ app.get('/', (req, res) => {
   res.send({ message: 'Social Development Events Platform Server is running fine!' })
 })
 
+// Quick check: View all data in database (Events & Joined registrations)
+app.get('/all-data', async (req, res) => {
+  try {
+    const allEvents = await eventsCollection.find().sort({ createdAt: -1 }).toArray()
+    const allJoined = await joinedEventsCollection.find().sort({ joinedAt: -1 }).toArray()
+
+    res.send({
+      status: 'success',
+      counts: {
+        totalEvents: allEvents.length,
+        totalJoined: allJoined.length
+      },
+      events: allEvents,
+      joinedEvents: allJoined
+    })
+  } catch (error) {
+    res.status(500).send({ message: 'Failed to retrieve database records', error: error.message })
+  }
+})
+
 // Authentication: Generate JWT Token
 app.post('/jwt', async (req, res) => {
   const { email } = req.body

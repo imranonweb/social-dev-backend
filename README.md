@@ -46,6 +46,9 @@ npm install
 # Run in watch/development mode
 npm run dev
 
+# Inspect database records directly in terminal
+npm run check-db
+
 # Run in production mode
 npm start
 ```
@@ -54,10 +57,11 @@ npm start
 
 ## 📡 API Endpoints Reference
 
-### 1. Base / Health Check
+### 1. Base / Health Check & Inspection
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
 | `GET` | `/` | Public | Returns server health and status message |
+| `GET` | `/all-data` | Public | Returns complete overview and counts of all events and joined registrations |
 
 ### 2. Authentication
 | Method | Endpoint | Access | Body Payload | Description |
